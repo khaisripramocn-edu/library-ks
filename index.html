@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Library Borrow & Return — LocalStorage</title>
+  <meta name="description" content="Simple library system using LocalStorage. Works on GitHub Pages." />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <style>
+    :root{
+      --bg:#0f172a; --pane:#111827; --muted:#334155; --card:#0b1220; --text:#e5e7eb; --accent:#22c55e; --accent2:#60a5fa; --warn:#f59e0b; --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu, Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";background:linear-gradient(180deg,var(--bg),#0a0f1d);color:var(--text)}
+    .container{max-width:1200px;margin:0 auto;padding:24px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:12px;align-items:center}
+    .brand .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:grid;place-items:center;color:#071018;font-weight:900}
+    .pill{font-size:12px;padding:4px 8px;border:1px solid #1f2937;border-radius:999px;color:#cbd5e1}
+    nav{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+    nav button{background:#0b1220;border:1px solid #1f2937;color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer}
+    nav button.active{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(96,165,250,.15) inset}
+    .grid{display:grid;gap:16px}
+    .grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{background:rgba(17,24,39,.6);backdrop-filter: blur(6px);border:1px solid #1f2937;border-radius:16px;padding:16px}
+    .card h3{margin:0 0 6px 0}
+    .muted{color:#94a3b8;font-size:12px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    input,select{background:#0b1220;border:1px solid #1f2937;color:var(--text);padding:10px 12px;border-radius:10px}
+    input[type="datetime-local"]{min-width:220px}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid #1f2937;background:#0b1220;color:var(--text);cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,#1d4ed8,#22c55e);border:none}
+    .btn.accent{background:#0b1220;border:1px solid var(--accent2)}
+    .btn.warn{background:#0b1220;border:1px solid var(--warn)}
+    .btn.danger{background:#0b1220;border:1px solid var(--danger)}
+    table{width:100%;border-collapse:collapse;border:1px solid #1f2937}
+    th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left}
+    th{background:#0b1220;position:sticky;top:0}
+    .right{margin-left:auto}
+    .hidden{display:none !important}
+    footer{margin-top:32px;color:#64748b;font-size:12px}
+    .sep{height:1px;background:#1f2937;margin:16px 0}
+    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid #263141;background:#0a1220;color:#93c5fd}
+    .login{position:fixed;inset:0;display:grid;place-items:center;background:rgba(2,6,23,.8);backdrop-filter: blur(4px)}
+    .login .panel{width:min(560px,92vw);}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#0b1220;border:1px solid #263141;border-bottom-width:3px;border-radius:8px;padding:2px 6px}
+    .danger-text{color:#fecaca}
+    .ok{color:#86efac}
+    .search{width:100%}
+    @media (max-width:900px){.grid.cols-3{grid-template-columns:1fr}.grid.cols-2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">📚</div>
+        <div>
+          <h2 style="margin:0">Library LocalStorage</h2>
+          <div class="muted">ระบบยืม–คืนหนังสือ (ทำงานบน GitHub Pages ได้)</div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="pill" id="rolePill">Role: -</span>
+        <button class="btn" id="btnSwitchUser">เปลี่ยนผู้ใช้</button>
+      </div>
+    </header>
+
+    <nav id="navTabs"></nav>
+
+    <section id="view-dashboard" class="hidden">
+      <div class="grid cols-3">
+        <div class="card">
+          <h3>หนังสือทั้งหมด</h3>
+          <div id="statTotalBooks" style="font-size:32px;font-weight:800">0</div>
+          <div class="muted">เล่ม</div>
+        </div>
+        <div class="card">
+          <h3>นักเรียนทั้งหมด</h3>
+          <div id="statTotalStudents" style="font-size:32px;font-weight:800">0</div>
+          <div class="muted">คน</div>
+        </div>
+        <div class="card">
+          <h3>กำลังยืมอยู่</h3>
+          <div id="statBorrowing" style="font-size:32px;font-weight:800">0</div>
+          <div class="muted">รายการ</div>
+        </div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:16px">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3 style="margin:0">กราฟสถิติการยืมรายวัน</h3>
+            <div class="row">
+              <input type="date" id="chartFrom"/>
+              <input type="date" id="chartTo"/>
+              <button class="btn accent" id="btnReloadChart">โหลดใหม่</button>
+            </div>
+          </div>
+          <canvas id="chartDaily" height="120"></canvas>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px 0">สรุปยอดยืม–คืน (ล่าสุด)</h3>
+          <table>
+            <thead><tr><th>เวลา</th><th>นักเรียน</th><th>หนังสือ</th><th>สถานะ</th></tr></thead>
+            <tbody id="tblRecent"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-borrow" class="hidden">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">ทำรายการยืม–คืน</h3>
+        <div class="row">
+          <label>นักเรียน</label>
+          <select id="brwStudent"></select>
+          <label>หนังสือ</label>
+          <input id="bookSearch" class="search" placeholder="ค้นหาหนังสือด้วย ชื่อ / ผู้แต่ง / ISBN" />
+          <select id="brwBook"></select>
+          <input type="datetime-local" id="brwWhen" />
+          <button class="btn primary" id="btnBorrow">ยืม</button>
+          <button class="btn warn" id="btnReturn">คืน</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0">กำลังยืมอยู่</h3>
+          <div class="row">
+            <input id="filterBorrowing" placeholder="ค้นหานักเรียน/หนังสือ" />
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>นักเรียน</th><th>หนังสือ</th><th>ยืมเมื่อ</th><th>คืนเมื่อ</th><th>สถานะ</th><th></th></tr>
+          </thead>
+          <tbody id="tblBorrowing"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-books" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0">รายการหนังสือ</h3>
+          <div class="row">
+            <input id="bookQuickSearch" placeholder="ค้นหา" />
+            <button class="btn accent" id="btnAddBook">+ เพิ่มหนังสือ</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ISBN</th><th>ชื่อเรื่อง</th><th>ผู้แต่ง</th><th>หมวด</th><th>จำนวน</th><th>คงเหลือ</th><th></th></tr>
+          </thead>
+          <tbody id="tblBooks"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-students" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0">รายชื่อนักเรียน</h3>
+          <div class="row">
+            <input id="studentQuickSearch" placeholder="ค้นหา" />
+            <button class="btn accent" id="btnAddStudent">+ เพิ่มนักเรียน</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>รหัส</th><th>ชื่อ–สกุล</th><th>ชั้น/ห้อง</th><th>เบอร์ติดต่อ</th><th></th></tr>
+          </thead>
+          <tbody id="tblStudents"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-reports" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">รายงานสรุปยอดยืม–คืน</h3>
+          <div class="row">
+            <input type="date" id="repFrom" />
+            <input type="date" id="repTo" />
+            <select id="repStatus">
+              <option value="">ทั้งหมด</option>
+              <option value="borrow">ยืม</option>
+              <option value="return">คืนแล้ว</option>
+            </select>
+            <button class="btn" id="btnFilterReport">กรอง</button>
+            <button class="btn" id="btnExportExcel">Export Excel</button>
+            <button class="btn" id="btnExportPDF">Export PDF</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>เวลา</th><th>นักเรียน</th><th>หนังสือ</th><th>สถานะ</th></tr>
+          </thead>
+          <tbody id="tblReport"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-settings" class="hidden">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">การตั้งค่า & สำรองข้อมูล</h3>
+        <div class="row">
+          <button class="btn" id="btnDownloadJSON">Export ข้อมูลทั้งหมด (JSON)</button>
+          <input type="file" id="fileImportJSON" accept="application/json" />
+          <button class="btn warn" id="btnImportJSON">นำเข้า JSON</button>
+          <button class="btn danger" id="btnResetAll">ล้างข้อมูลทั้งหมด</button>
+        </div>
+        <div class="sep"></div>
+        <div class="row">
+          <div>ตั้งค่า PIN สำหรับครู:</div>
+          <input id="teacherPIN" placeholder="เช่น 1234" />
+          <button class="btn" id="btnSavePIN">บันทึก</button>
+          <span class="muted">ใช้สำหรับเข้าสู่ระบบ Role ครู</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      ทำงานแบบ Offline-first — ข้อมูลอยู่ใน LocalStorage (<span class="kbd">localStorage</span>) ของเบราว์เซอร์ เก็บแยกตามโดเมน/โปรเจ็กต์
+    </footer>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="login" id="loginModal">
+    <div class="card panel">
+      <h3 style="margin-top:0">เข้าสู่ระบบ</h3>
+      <div class="row">
+        <label class="tag">เลือกบทบาท</label>
+        <select id="loginRole">
+          <option value="teacher">ครู</option>
+          <option value="student">นักเรียน</option>
+        </select>
+        <div id="pinWrap" class="row">
+          <label>PIN (ครู)</label>
+          <input id="loginPIN" placeholder="เช่น 1234" />
+        </div>
+        <div id="studentWrap" class="row hidden">
+          <label>เลือกชื่อนักเรียน</label>
+          <select id="loginStudent"></select>
+        </div>
+        <button class="btn primary" id="btnDoLogin">เข้าใช้งาน</button>
+      </div>
+      <div class="muted" style="margin-top:8px">* เปลี่ยน/ตั้งค่า PIN ได้ที่เมนู "การตั้งค่า" หลังเข้าสู่ระบบ</div>
+    </div>
+  </div>
+
+  <!-- Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    const NS = 'libsys_v1';
+    const KEY = {
+      BOOKS: NS+':books',
+      STUDENTS: NS+':students',
+      LOGS: NS+':logs', // transactions
+      CONFIG: NS+':config',
+      USER: NS+':currentUser'
+    };
+
+    const $ = (sel)=>document.querySelector(sel);
+    const $$ = (sel)=>document.querySelectorAll(sel);
+
+    // --- Storage helpers ---
+    const store = {
+      get(k, def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def } },
+      set(k, v){ localStorage.setItem(k, JSON.stringify(v)) },
+      rm(k){ localStorage.removeItem(k) }
+    };
+
+    // --- Data models ---
+    function uid(){ return Math.random().toString(36).slice(2,10) }
+    function nowISO(){ return new Date().toISOString().slice(0,16) } // yyyy-mm-ddThh:mm
+
+    function initSeed(){
+      if(!store.get(KEY.BOOKS)){
+        store.set(KEY.BOOKS,[
+          {id:uid(), isbn:'978616', title:'คณิตสนุก', author:'ครูเอ', category:'การศึกษา', qty:5, left:5},
+          {id:uid(), isbn:'978123', title:'วิทย์น่ารู้', author:'ครูบี', category:'วิทยาศาสตร์', qty:3, left:3},
+          {id:uid(), isbn:'978999', title:'นิทานก่อนนอน', author:'ครูซี', category:'วรรณกรรม', qty:4, left:4}
+        ]);
+      }
+      if(!store.get(KEY.STUDENTS)){
+        store.set(KEY.STUDENTS,[
+          {id:uid(), code:'S001', name:'ด.ช. ไนท์ สน', class:'ป.6/1', phone:'-'},
+          {id:uid(), code:'S002', name:'ด.ญ. เอริน', class:'ป.6/1', phone:'-'},
+          {id:uid(), code:'S003', name:'ด.ช. ไทกอร์', class:'ป.6/2', phone:'-'}
+        ]);
+      }
+      if(!store.get(KEY.LOGS)) store.set(KEY.LOGS,[]);
+      if(!store.get(KEY.CONFIG)) store.set(KEY.CONFIG,{teacherPIN:'1234'});
+    }
+
+    // --- UI State ---
+    const tabs = [
+      {id:'dashboard', label:'Dashboard'},
+      {id:'borrow', label:'ยืม–คืน'},
+      {id:'books', label:'หนังสือ', role:'teacher'},
+      {id:'students', label:'นักเรียน', role:'teacher'},
+      {id:'reports', label:'รายงาน'},
+      {id:'settings', label:'การตั้งค่า', role:'teacher'}
+    ];
+
+    function renderTabs(){
+      const nav = $('#navTabs');
+      nav.innerHTML = '';
+      const user = store.get(KEY.USER);
+      tabs.forEach(t=>{
+        if(t.role && user?.role !== 'teacher') return;
+        const btn = document.createElement('button');
+        btn.textContent = t.label;
+        btn.dataset.view = t.id;
+        btn.onclick = ()=>switchView(t.id, btn);
+        nav.appendChild(btn);
+      });
+      // activate first tab
+      const first = nav.querySelector('button');
+      if(first) first.click();
+    }
+
+    function switchView(id, btn){
+      $$('section[id^="view-"]').forEach(s=>s.classList.add('hidden'));
+      $(`#view-${id}`).classList.remove('hidden');
+      // active class
+      $$('#navTabs button').forEach(b=>b.classList.remove('active'));
+      btn?.classList.add('active');
+      // on enter
+      if(id==='dashboard') refreshDashboard();
+      if(id==='borrow') refreshBorrowUI();
+      if(id==='books') renderBooks();
+      if(id==='students') renderStudents();
+      if(id==='reports') renderReports();
+      if(id==='settings') initSettingsUI();
+    }
+
+    // --- Books ---
+    function renderBooks(){
+      const tbody = $('#tblBooks');
+      const q = $('#bookQuickSearch').value?.toLowerCase()||'';
+      let books = store.get(KEY.BOOKS,[]);
+      books = books.filter(b=> (b.isbn+b.title+b.author+b.category).toLowerCase().includes(q));
+      tbody.innerHTML = books.map(b=>`
+        <tr>
+          <td>${b.isbn}</td>
+          <td>${b.title}</td>
+          <td>${b.author}</td>
+          <td>${b.category}</td>
+          <td>${b.qty}</td>
+          <td>${b.left}</td>
+          <td class="right">
+            <button class="btn" onclick="editBook('${b.id}')">แก้ไข</button>
+            <button class="btn danger" onclick="deleteBook('${b.id}')">ลบ</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function addOrEditBook(existing){
+      const isbn = prompt('ISBN', existing?.isbn||''); if(isbn===null) return;
+      const title = prompt('ชื่อเรื่อง', existing?.title||''); if(title===null) return;
+      const author = prompt('ผู้แต่ง', existing?.author||''); if(author===null) return;
+      const category = prompt('หมวด', existing?.category||''); if(category===null) return;
+      const qty = parseInt(prompt('จำนวน (เล่ม)', existing?.qty ?? 1) || '1');
+      if(!title) return alert('ต้องมีชื่อเรื่อง');
+      let books = store.get(KEY.BOOKS,[]);
+      if(existing){
+        const leftAdj = existing.left + (qty - existing.qty);
+        Object.assign(existing,{isbn,title,author,category,qty,left:leftAdj<0?0:leftAdj});
+      }else{
+        books.push({id:uid(), isbn,title,author,category, qty, left:qty});
+      }
+      store.set(KEY.BOOKS, books);
+      renderBooks(); refreshBorrowUI(); refreshDashboard();
+    }
+
+    function editBook(id){
+      const books = store.get(KEY.BOOKS,[]);
+      const b = books.find(x=>x.id===id); if(!b) return;
+      addOrEditBook(b);
+    }
+
+    function deleteBook(id){
+      if(!confirm('ลบหนังสือเล่มนี้?')) return;
+      let books = store.get(KEY.BOOKS,[]).filter(b=>b.id!==id);
+      store.set(KEY.BOOKS, books);
+      renderBooks(); refreshBorrowUI(); refreshDashboard();
+    }
+
+    // --- Students ---
+    function renderStudents(){
+      const tbody = $('#tblStudents');
+      const q = $('#studentQuickSearch').value?.toLowerCase()||'';
+      let st = store.get(KEY.STUDENTS,[]);
+      st = st.filter(s=> (s.code+s.name+s.class+s.phone).toLowerCase().includes(q));
+      tbody.innerHTML = st.map(s=>`
+        <tr>
+          <td>${s.code}</td>
+          <td>${s.name}</td>
+          <td>${s.class}</td>
+          <td>${s.phone}</td>
+          <td class="right">
+            <button class="btn" onclick="editStudent('${s.id}')">แก้ไข</button>
+            <button class="btn danger" onclick="deleteStudent('${s.id}')">ลบ</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function addOrEditStudent(existing){
+      const code = prompt('รหัสนักเรียน', existing?.code||''); if(code===null) return;
+      const name = prompt('ชื่อ–สกุล', existing?.name||''); if(name===null) return;
+      const room = prompt('ชั้น/ห้อง', existing?.class||''); if(room===null) return;
+      const phone = prompt('เบอร์ติดต่อ', existing?.phone||''); if(phone===null) return;
+      let st = store.get(KEY.STUDENTS,[]);
+      if(existing){ Object.assign(existing,{code,name,class:room,phone}); }
+      else{ st.push({id:uid(), code,name, class:room, phone}); }
+      store.set(KEY.STUDENTS, st);
+      renderStudents(); refreshBorrowUI(); refreshDashboard();
+      // refresh login student list
+      fillLoginStudents();
+    }
+
+    function editStudent(id){
+      const st = store.get(KEY.STUDENTS,[]);
+      const s = st.find(x=>x.id===id); if(!s) return;
+      addOrEditStudent(s);
+    }
+
+    function deleteStudent(id){
+      if(!confirm('ลบนักเรียนคนนี้?')) return;
+      let st = store.get(KEY.STUDENTS,[]).filter(s=>s.id!==id);
+      store.set(KEY.STUDENTS, st);
+      renderStudents(); refreshBorrowUI(); refreshDashboard(); fillLoginStudents();
+    }
+
+    // --- Borrow / Return ---
+    function refreshBorrowUI(){
+      const st = store.get(KEY.STUDENTS,[]);
+      const books = store.get(KEY.BOOKS,[]);
+      const user = store.get(KEY.USER);
+      const studentSel = $('#brwStudent');
+      const bookSel = $('#brwBook');
+      // student options
+      studentSel.innerHTML = st.map(s=>`<option value="${s.id}">${s.name} (${s.class})</option>`).join('');
+      if(user?.role==='student' && user.studentId){
+        studentSel.value = user.studentId;
+        studentSel.disabled = true;
+      } else studentSel.disabled = false;
+      // books options (by search)
+      const q = $('#bookSearch').value?.toLowerCase()||'';
+      const filtered = books.filter(b=> (b.title+b.author+b.isbn).toLowerCase().includes(q));
+      bookSel.innerHTML = filtered.map(b=>`<option value="${b.id}">${b.title} — ${b.author} [${b.left}/${b.qty}]</option>`).join('');
+      $('#brwWhen').value = nowISO();
+      renderBorrowingTable();
+    }
+
+    function renderBorrowingTable(){
+      const logs = store.get(KEY.LOGS,[]);
+      const st = store.get(KEY.STUDENTS,[]);
+      const books = store.get(KEY.BOOKS,[]);
+      const q = $('#filterBorrowing').value?.toLowerCase()||'';
+      const rows = logs.map(l=>{
+        const s = st.find(x=>x.id===l.studentId);
+        const b = books.find(x=>x.id===l.bookId);
+        const studentName = s? s.name: '-';
+        const bookName = b? b.title: '-';
+        return {...l, studentName, bookName}
+      }).filter(r=> (r.studentName+r.bookName).toLowerCase().includes(q));
+      $('#tblBorrowing').innerHTML = rows.map(r=>`
+        <tr>
+          <td>${r.studentName}</td>
+          <td>${r.bookName}</td>
+          <td>${fmtDT(r.borrowAt)}</td>
+          <td>${r.returnAt? fmtDT(r.returnAt): '-'}</td>
+          <td>${r.returnAt? '<span class="ok">คืนแล้ว</span>':'<span class="danger-text">ยืมอยู่</span>'}</td>
+          <td class="right">${!r.returnAt? `<button class="btn" onclick="quickReturn('${r.id}')">ทำคืน</button>`:''}</td>
+        </tr>`).join('');
+    }
+
+    function fmtDT(dt){
+      try{ return new Date(dt).toLocaleString('th-TH',{hour12:false}) }catch{ return dt }
+    }
+
+    function borrow(){
+      const studentId = $('#brwStudent').value; if(!studentId) return alert('เลือกนักเรียน');
+      const bookId = $('#brwBook').value; if(!bookId) return alert('เลือกหนังสือ');
+      const when = $('#brwWhen').value;
+      let books = store.get(KEY.BOOKS,[]);
+      const b = books.find(x=>x.id===bookId);
+      if(!b || b.left<=0) return alert('เล่มนี้ไม่พอให้ยืม');
+      b.left -= 1; store.set(KEY.BOOKS, books);
+      const logs = store.get(KEY.LOGS,[]);
+      logs.unshift({id:uid(), studentId, bookId, borrowAt:when, returnAt:null});
+      store.set(KEY.LOGS,logs);
+      refreshBorrowUI(); refreshDashboard();
+    }
+
+    function returnBook(){
+      const studentId = $('#brwStudent').value;
+      const bookId = $('#brwBook').value;
+      const when = $('#brwWhen').value;
+      const logs = store.get(KEY.LOGS,[]);
+      const idx = logs.findIndex(l=>l.studentId===studentId && l.bookId===bookId && !l.returnAt);
+      if(idx<0) return alert('ไม่พบรายการยืมค้างอยู่ของคู่นี้');
+      logs[idx].returnAt = when;
+      store.set(KEY.LOGS, logs);
+      let books = store.get(KEY.BOOKS,[]);
+      const b = books.find(x=>x.id===bookId); if(b) b.left += 1;
+      store.set(KEY.BOOKS, books);
+      refreshBorrowUI(); refreshDashboard();
+    }
+
+    function quickReturn(logId){
+      const logs = store.get(KEY.LOGS,[]);
+      const l = logs.find(x=>x.id===logId); if(!l || l.returnAt) return;
+      l.returnAt = new Date().toISOString();
+      store.set(KEY.LOGS, logs);
+      let books = store.get(KEY.BOOKS,[]);
+      const b = books.find(x=>x.id===l.bookId); if(b) b.left += 1;
+      store.set(KEY.BOOKS, books);
+      renderBorrowingTable(); refreshDashboard();
+    }
+
+    // --- Reports ---
+    function renderReports(){
+      const logs = store.get(KEY.LOGS,[]);
+      const st = store.get(KEY.STUDENTS,[]);
+      const books = store.get(KEY.BOOKS,[]);
+      const from = $('#repFrom').value ? new Date($('#repFrom').value) : null;
+      const to = $('#repTo').value ? new Date($('#repTo').value+'T23:59') : null;
+      const status = $('#repStatus').value;
+      const rows = logs.filter(l=>{
+        const d = new Date(l.borrowAt);
+        if(from && d<from) return false;
+        if(to && d>to) return false;
+        if(status==='borrow' && l.returnAt) return false;
+        if(status==='return' && !l.returnAt) return false;
+        return true;
+      }).map(l=>{
+        const s = st.find(x=>x.id===l.studentId);
+        const b = books.find(x=>x.id===l.bookId);
+        return {time:fmtDT(l.borrowAt), student:s?.name||'-', book:b?.title||'-', status:l.returnAt?'คืนแล้ว':'ยืม'}
+      });
+      const tbody = $('#tblReport');
+      tbody.innerHTML = rows.map(r=>`<tr><td>${r.time}</td><td>${r.student}</td><td>${r.book}</td><td>${r.status}</td></tr>`).join('');
+    }
+
+    async function exportExcel(){
+      // build worksheet from table
+      const table = document.createElement('table');
+      table.innerHTML = document.querySelector('#tblReport').parentElement.innerHTML;
+      const wb = XLSX.utils.table_to_book(table, {sheet:"Report"});
+      XLSX.writeFile(wb, `library-report-${Date.now()}.xlsx`);
+    }
+
+    async function exportPDF(){
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p','pt','a4');
+      doc.setFontSize(14);
+      doc.text('รายงานสรุปยอดยืม–คืน',40,40);
+      // build rows from DOM
+      const headers = [['เวลา','นักเรียน','หนังสือ','สถานะ']];
+      const rows = [...$('#tblReport').querySelectorAll('tr')].map(tr=>[...tr.children].map(td=>td.textContent));
+      doc.autoTable({ head: headers, body: rows, startY:60, styles:{fontSize:10}});
+      doc.save(`library-report-${Date.now()}.pdf`);
+    }
+
+    // --- Dashboard ---
+    let chart;
+    function refreshDashboard(){
+      const books = store.get(KEY.BOOKS,[]);
+      const st = store.get(KEY.STUDENTS,[]);
+      const logs = store.get(KEY.LOGS,[]);
+      $('#statTotalBooks').textContent = books.length;
+      $('#statTotalStudents').textContent = st.length;
+      $('#statBorrowing').textContent = logs.filter(l=>!l.returnAt).length;
+      // recent
+      const tbody = $('#tblRecent');
+      tbody.innerHTML = logs.slice(0,10).map(l=>{
+        const s = st.find(x=>x.id===l.studentId)?.name || '-';
+        const b = books.find(x=>x.id===l.bookId)?.title || '-';
+        return `<tr><td>${fmtDT(l.borrowAt)}</td><td>${s}</td><td>${b}</td><td>${l.returnAt?'คืนแล้ว':'ยืม'}</td></tr>`
+      }).join('');
+      // chart by day
+      const from = $('#chartFrom').value ? new Date($('#chartFrom').value) : new Date(Date.now()-1000*60*60*24*14);
+      const to = $('#chartTo').value ? new Date($('#chartTo').value+'T23:59') : new Date();
+      const counts = {};
+      logs.forEach(l=>{
+        const d = new Date(l.borrowAt);
+        if(d<from || d>to) return;
+        const key = d.toISOString().slice(0,10);
+        counts[key] = (counts[key]||0)+1;
+      });
+      const labels = [...Array( ( (to - from)/(1000*60*60*24) |0 ) +1 ).keys()].map(i=>{
+        const d = new Date(from.getTime() + i*86400000);return d.toISOString().slice(0,10);
+      });
+      const data = labels.map(k=>counts[k]||0);
+      const ctx = $('#chartDaily').getContext('2d');
+      chart?.destroy();
+      chart = new Chart(ctx, { type:'line', data:{ labels, datasets:[{ label:'จำนวนการยืม/วัน', data }] }, options:{ responsive:true, plugins:{legend:{display:false}} }});
+    }
+
+    // --- Settings & Auth ---
+    function initSettingsUI(){
+      const cfg = store.get(KEY.CONFIG,{teacherPIN:'1234'});
+      $('#teacherPIN').value = cfg.teacherPIN || '';
+    }
+
+    function savePIN(){
+      const cfg = store.get(KEY.CONFIG,{teacherPIN:'1234'});
+      cfg.teacherPIN = $('#teacherPIN').value || '1234';
+      store.set(KEY.CONFIG, cfg);
+      alert('บันทึก PIN แล้ว');
+    }
+
+    function openLogin(){
+      $('#loginModal').classList.remove('hidden');
+      fillLoginStudents();
+    }
+
+    function fillLoginStudents(){
+      const sel = $('#loginStudent');
+      const st = store.get(KEY.STUDENTS,[]);
+      sel.innerHTML = st.map(s=>`<option value="${s.id}">${s.name} (${s.class})</option>`).join('');
+    }
+
+    function applyRolePill(){
+      const u = store.get(KEY.USER);
+      $('#rolePill').textContent = u? `Role: ${u.role}${u.role==='student' && u.studentName? ' — '+u.studentName:''}` : 'Role: -';
+    }
+
+    function doLogin(){
+      const role = $('#loginRole').value;
+      if(role==='teacher'){
+        const pin = $('#loginPIN').value;
+        const ok = (store.get(KEY.CONFIG,{teacherPIN:'1234'}).teacherPIN === pin);
+        if(!ok) return alert('PIN ไม่ถูกต้อง');
+        store.set(KEY.USER,{role:'teacher'});
+      }else{
+        const sid = $('#loginStudent').value; if(!sid) return alert('เลือกชื่อนักเรียน');
+        const stu = store.get(KEY.STUDENTS,[]).find(s=>s.id===sid);
+        store.set(KEY.USER,{role:'student', studentId:sid, studentName:stu?.name});
+      }
+      $('#loginModal').classList.add('hidden');
+      applyRolePill();
+      renderTabs();
+    }
+
+    function switchUser(){
+      store.rm(KEY.USER);
+      applyRolePill();
+      openLogin();
+    }
+
+    // --- Settings: JSON backup ---
+    function downloadJSON(){
+      const data = {
+        books: store.get(KEY.BOOKS,[]),
+        students: store.get(KEY.STUDENTS,[]),
+        logs: store.get(KEY.LOGS,[]),
+        config: store.get(KEY.CONFIG,{})
+      };
+      const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `library-backup-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importJSON(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          if(data.books) store.set(KEY.BOOKS, data.books);
+          if(data.students) store.set(KEY.STUDENTS, data.students);
+          if(data.logs) store.set(KEY.LOGS, data.logs);
+          if(data.config) store.set(KEY.CONFIG, data.config);
+          alert('นำเข้าข้อมูลแล้ว');
+          renderTabs(); refreshDashboard();
+        }catch(e){ alert('ไฟล์ไม่ถูกต้อง'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetAll(){
+      if(!confirm('ล้างข้อมูลทั้งหมด?')) return;
+      store.rm(KEY.BOOKS); store.rm(KEY.STUDENTS); store.rm(KEY.LOGS); store.rm(KEY.CONFIG); store.rm(KEY.USER);
+      initSeed();
+      alert('ล้างแล้วและสร้างข้อมูลตัวอย่างใหม่');
+      location.reload();
+    }
+
+    // --- Event bindings ---
+    window.addEventListener('DOMContentLoaded', ()=>{
+      initSeed();
+      openLogin();
+      // login ui switching
+      $('#loginRole').addEventListener('change', (e)=>{
+        const isTeacher = e.target.value==='teacher';
+        $('#pinWrap').classList.toggle('hidden', !isTeacher);
+        $('#studentWrap').classList.toggle('hidden', isTeacher);
+      });
+      $('#btnDoLogin').onclick = doLogin;
+      $('#btnSwitchUser').onclick = switchUser;
+      applyRolePill();
+
+      // tabs
+      renderTabs();
+
+      // buttons
+      $('#btnAddBook').onclick = ()=>addOrEditBook();
+      $('#btnAddStudent').onclick = ()=>addOrEditStudent();
+      $('#btnBorrow').onclick = borrow;
+      $('#btnReturn').onclick = returnBook;
+      $('#btnFilterReport').onclick = renderReports;
+      $('#btnExportExcel').onclick = exportExcel;
+      $('#btnExportPDF').onclick = exportPDF;
+      $('#btnDownloadJSON').onclick = downloadJSON;
+      $('#btnImportJSON').onclick = ()=>{
+        const f = $('#fileImportJSON').files?.[0];
+        if(!f) return alert('เลือกไฟล์ JSON ก่อน');
+        importJSON(f);
+      };
+      $('#btnResetAll').onclick = resetAll;
+      $('#btnSavePIN').onclick = savePIN;
+      $('#btnReloadChart').onclick = refreshDashboard;
+
+      // searches
+      $('#bookQuickSearch').addEventListener('input', renderBooks);
+      $('#studentQuickSearch').addEventListener('input', renderStudents);
+      $('#bookSearch').addEventListener('input', refreshBorrowUI);
+      $('#filterBorrowing').addEventListener('input', renderBorrowingTable);
+    });
+
+    // expose for inline handlers
+    window.editBook = editBook;
+    window.deleteBook = deleteBook;
+    window.editStudent = editStudent;
+    window.deleteStudent = deleteStudent;
+    window.quickReturn = quickReturn;
+  </script>
+</body>
+</html>
